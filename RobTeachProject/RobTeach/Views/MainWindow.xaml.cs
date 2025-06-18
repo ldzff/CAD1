@@ -773,175 +773,89 @@ namespace RobTeach.Views
             }
         }
 
-        private void LineStartZTextBox_LostFocus(object sender, RoutedEventArgs e)
+    private void LineStartZTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
         {
-            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
+            if (double.TryParse(LineStartZTextBox.Text, out double newZ))
             {
-                if (double.TryParse(LineStartZTextBox.Text, out double newZ))
-                {
-                    selectedTrajectory.LineStartPoint = new DxfPoint(
-                        selectedTrajectory.LineStartPoint.X,
-                        selectedTrajectory.LineStartPoint.Y,
-                        newZ);
-                    isConfigurationDirty = true;
-                    CurrentPassTrajectoriesListBox.Items.Refresh(); // Update display if Z is shown
-                    // Potentially call PopulateTrajectoryPoints(selectedTrajectory) if Z affects point generation for some reason
-                }
-                else
-                {
-                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    LineStartZTextBox.Text = selectedTrajectory.LineStartPoint.Z.ToString("F3"); // Revert
-                }
+                selectedTrajectory.LineStartPoint = new DxfPoint(
+                    selectedTrajectory.LineStartPoint.X,
+                    selectedTrajectory.LineStartPoint.Y,
+                    newZ);
+                isConfigurationDirty = true;
+                CurrentPassTrajectoriesListBox.Items.Refresh();
+            }
+            else
+            {
+                MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                LineStartZTextBox.Text = selectedTrajectory.LineStartPoint.Z.ToString("F3"); // Revert
             }
         }
+    }
 
-        private void LineEndZTextBox_LostFocus(object sender, RoutedEventArgs e)
+    private void LineEndZTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
         {
-            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
+            if (double.TryParse(LineEndZTextBox.Text, out double newZ))
             {
-                if (double.TryParse(LineEndZTextBox.Text, out double newZ))
-                {
-                    selectedTrajectory.LineEndPoint = new DxfPoint(
-                        selectedTrajectory.LineEndPoint.X,
-                        selectedTrajectory.LineEndPoint.Y,
-                        newZ);
-                    isConfigurationDirty = true;
-                    CurrentPassTrajectoriesListBox.Items.Refresh();
-                }
-                else
-                {
-                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    LineEndZTextBox.Text = selectedTrajectory.LineEndPoint.Z.ToString("F3"); // Revert
-                }
+                selectedTrajectory.LineEndPoint = new DxfPoint(
+                    selectedTrajectory.LineEndPoint.X,
+                    selectedTrajectory.LineEndPoint.Y,
+                    newZ);
+                isConfigurationDirty = true;
+                CurrentPassTrajectoriesListBox.Items.Refresh();
+            }
+            else
+            {
+                MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                LineEndZTextBox.Text = selectedTrajectory.LineEndPoint.Z.ToString("F3"); // Revert
             }
         }
+    }
 
-        private void ArcCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
+    private void ArcCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Arc")
         {
-            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Arc")
+            if (double.TryParse(ArcCenterZTextBox.Text, out double newZ))
             {
-                if (double.TryParse(ArcCenterZTextBox.Text, out double newZ))
-                {
-                    selectedTrajectory.ArcCenter = new DxfPoint(
-                        selectedTrajectory.ArcCenter.X,
-                        selectedTrajectory.ArcCenter.Y,
-                        newZ);
-                    isConfigurationDirty = true;
-                    CurrentPassTrajectoriesListBox.Items.Refresh();
-                }
-                else
-                {
-                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    ArcCenterZTextBox.Text = selectedTrajectory.ArcCenter.Z.ToString("F3"); // Revert
-                }
+                selectedTrajectory.ArcCenter = new DxfPoint(
+                    selectedTrajectory.ArcCenter.X,
+                    selectedTrajectory.ArcCenter.Y,
+                    newZ);
+                isConfigurationDirty = true;
+                CurrentPassTrajectoriesListBox.Items.Refresh();
+            }
+            else
+            {
+                MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ArcCenterZTextBox.Text = selectedTrajectory.ArcCenter.Z.ToString("F3"); // Revert
             }
         }
+    }
 
-        private void CircleCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
+    private void CircleCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Circle")
         {
-            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Circle")
+            if (double.TryParse(CircleCenterZTextBox.Text, out double newZ))
             {
-                if (double.TryParse(CircleCenterZTextBox.Text, out double newZ))
-                {
-                    selectedTrajectory.CircleCenter = new DxfPoint(
-                        selectedTrajectory.CircleCenter.X,
-                        selectedTrajectory.CircleCenter.Y,
-                        newZ);
-                    isConfigurationDirty = true;
-                    CurrentPassTrajectoriesListBox.Items.Refresh();
-                }
-                else
-                {
-                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    CircleCenterZTextBox.Text = selectedTrajectory.CircleCenter.Z.ToString("F3"); // Revert
-                }
+                selectedTrajectory.CircleCenter = new DxfPoint(
+                    selectedTrajectory.CircleCenter.X,
+                    selectedTrajectory.CircleCenter.Y,
+                    newZ);
+                isConfigurationDirty = true;
+                CurrentPassTrajectoriesListBox.Items.Refresh();
+            }
+            else
+            {
+                MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                CircleCenterZTextBox.Text = selectedTrajectory.CircleCenter.Z.ToString("F3"); // Revert
             }
         }
-
-        private void LineStartZTextBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
-            {
-                if (double.TryParse(LineStartZTextBox.Text, out double newZ))
-                {
-                    selectedTrajectory.LineStartPoint = new DxfPoint(
-                        selectedTrajectory.LineStartPoint.X,
-                        selectedTrajectory.LineStartPoint.Y,
-                        newZ);
-                    isConfigurationDirty = true;
-                    CurrentPassTrajectoriesListBox.Items.Refresh(); // Update display if Z is shown
-                    // Potentially call PopulateTrajectoryPoints(selectedTrajectory) if Z affects point generation for some reason
-                }
-                else
-                {
-                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    LineStartZTextBox.Text = selectedTrajectory.LineStartPoint.Z.ToString("F3"); // Revert
-                }
-            }
-        }
-
-        private void LineEndZTextBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
-            {
-                if (double.TryParse(LineEndZTextBox.Text, out double newZ))
-                {
-                    selectedTrajectory.LineEndPoint = new DxfPoint(
-                        selectedTrajectory.LineEndPoint.X,
-                        selectedTrajectory.LineEndPoint.Y,
-                        newZ);
-                    isConfigurationDirty = true;
-                    CurrentPassTrajectoriesListBox.Items.Refresh();
-                }
-                else
-                {
-                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    LineEndZTextBox.Text = selectedTrajectory.LineEndPoint.Z.ToString("F3"); // Revert
-                }
-            }
-        }
-
-        private void ArcCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Arc")
-            {
-                if (double.TryParse(ArcCenterZTextBox.Text, out double newZ))
-                {
-                    selectedTrajectory.ArcCenter = new DxfPoint(
-                        selectedTrajectory.ArcCenter.X,
-                        selectedTrajectory.ArcCenter.Y,
-                        newZ);
-                    isConfigurationDirty = true;
-                    CurrentPassTrajectoriesListBox.Items.Refresh();
-                }
-                else
-                {
-                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    ArcCenterZTextBox.Text = selectedTrajectory.ArcCenter.Z.ToString("F3"); // Revert
-                }
-            }
-        }
-
-        private void CircleCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Circle")
-            {
-                if (double.TryParse(CircleCenterZTextBox.Text, out double newZ))
-                {
-                    selectedTrajectory.CircleCenter = new DxfPoint(
-                        selectedTrajectory.CircleCenter.X,
-                        selectedTrajectory.CircleCenter.Y,
-                        newZ);
-                    isConfigurationDirty = true;
-                    CurrentPassTrajectoriesListBox.Items.Refresh();
-                }
-                else
-                {
-                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    CircleCenterZTextBox.Text = selectedTrajectory.CircleCenter.Z.ToString("F3"); // Revert
-                }
-            }
-        }
+    }
 
         /// <summary>
         /// Handles the Closing event of the window. Ensures Modbus connection is disconnected.
