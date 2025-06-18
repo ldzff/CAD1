@@ -45,7 +45,7 @@ namespace RobTeach.Views
         private readonly Dictionary<System.Windows.Shapes.Shape, DxfEntity> _wpfShapeToDxfEntityMap = new Dictionary<System.Windows.Shapes.Shape, DxfEntity>(); // Changed to DxfEntity
         private readonly Dictionary<string, DxfEntity> _dxfEntityHandleMap = new Dictionary<string, DxfEntity>(); // Maps DXF entity handles to entities for quick lookup when loading configs.
         private readonly List<System.Windows.Shapes.Polyline> _trajectoryPreviewPolylines = new List<System.Windows.Shapes.Polyline>(); // Keeps track of trajectory preview polylines for easy removal.
-        private DirectionIndicator _directionIndicator; // Field for the direction indicator arrow
+        private List<DirectionIndicator> _directionIndicators; // Field for the direction indicator arrow
 
         // Fields for CAD Canvas Zoom/Pan functionality
         private ScaleTransform _scaleTransform;         // Handles scaling (zoom) of the canvas content.
@@ -73,6 +73,7 @@ namespace RobTeach.Views
         {
             InitializeComponent();
             if (CadCanvas.Background == null) CadCanvas.Background = Brushes.LightGray; // Ensure canvas has a background for hit testing.
+            _directionIndicators = new List<DirectionIndicator>();
 
             // Initialize product name with a timestamp to ensure uniqueness for new configurations.
             ProductNameTextBox.Text = $"Product_{DateTime.Now:yyyyMMddHHmmss}";
@@ -307,50 +308,46 @@ namespace RobTeach.Views
 
         private void UpdateDirectionIndicator()
         {
-            Trace.WriteLine("++++ UpdateDirectionIndicator Fired ++++");
-            Trace.Flush();
+            // Clear existing indicators
+            foreach (var indicator in _directionIndicators)
+            {
+                if (CadCanvas.Children.Contains(indicator))
+                {
+                    CadCanvas.Children.Remove(indicator);
+                }
+            }
+            _directionIndicators.Clear();
+
+            // Check for valid current pass
+            if (_currentConfiguration == null ||
+                _currentConfiguration.CurrentPassIndex < 0 ||
+                _currentConfiguration.CurrentPassIndex >= _currentConfiguration.SprayPasses.Count ||
+                _currentConfiguration.SprayPasses == null)
+            {
+                return;
+            }
+
+            var currentPass = _currentConfiguration.SprayPasses[_currentConfiguration.CurrentPassIndex];
+            if (currentPass == null || currentPass.Trajectories == null)
+            {
+                return;
+            }
+
             const double fixedArrowLineLength = 15.0; // Fixed visual length for the arrow's line segment
 
-            Trace.WriteLine($"  -- UpdateDirectionIndicator: Checking CurrentPassTrajectoriesListBox.SelectedItem. Type: {CurrentPassTrajectoriesListBox.SelectedItem?.GetType()?.FullName ?? "null"}, Value: {CurrentPassTrajectoriesListBox.SelectedItem?.ToString() ?? "null"}");
-            Trace.Flush();
-
-            // Initial Setup
-            if (_directionIndicator == null)
+            foreach (var selectedTrajectory in currentPass.Trajectories)
             {
-                _directionIndicator = new DirectionIndicator
+                if (selectedTrajectory.Points == null || !selectedTrajectory.Points.Any())
                 {
-                    // Set appearance properties that don't change per trajectory
-                    Color = System.Windows.Media.Brushes.Red, // Stays Red
-                    ArrowheadSize = 8,    // Reverted from 20
-                    StrokeThickness = 1.5 // Reverted from 5
+                    continue; // Skip if no points
+                }
+
+                var newIndicator = new DirectionIndicator
+                {
+                    Color = System.Windows.Media.Brushes.Blue,
+                    ArrowheadSize = 8,
+                    StrokeThickness = 1.5
                 };
-            }
-
-            // Always remove if present, to handle deselection or invalid states correctly
-            if (CadCanvas.Children.Contains(_directionIndicator))
-            {
-                CadCanvas.Children.Remove(_directionIndicator);
-            }
-
-            // Get Selected Trajectory
-            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory)
-            {
-                Trace.WriteLine($"  -- Successfully cast to Trajectory. PrimitiveType from cast: {selectedTrajectory?.PrimitiveType ?? "null trajectory object"}");
-                Trace.Flush();
-                if (selectedTrajectory.Points != null && selectedTrajectory.Points.Any())
-                {
-                    Trace.WriteLine($"UpdateDirectionIndicator: Trajectory '{selectedTrajectory.PrimitiveType}' selected. Point count: {selectedTrajectory.Points.Count}");
-                    for (int i = 0; i < selectedTrajectory.Points.Count; i++)
-                    {
-                        Trace.WriteLine($"  Point[{i}]: ({selectedTrajectory.Points[i].X:F3}, {selectedTrajectory.Points[i].Y:F3})");
-                    }
-                }
-                else
-                {
-                    Trace.WriteLine($"UpdateDirectionIndicator: Trajectory '{selectedTrajectory.PrimitiveType}' selected but Points list is null or empty.");
-                    Trace.Flush(); // Added flush before early return
-                    return; // Cannot proceed without points
-                }
 
                 List<System.Windows.Point> points = selectedTrajectory.Points;
                 Point arrowStartPoint = new Point();
@@ -363,8 +360,10 @@ namespace RobTeach.Views
                         if (points.Count >= 2)
                         {
                             Point actualEndPoint = points[points.Count - 1];
-                            Point actualStartPoint = points[0]; // Use the actual start of the line for overall direction
-                            Vector direction = actualEndPoint - actualStartPoint;
+                            // For direction, use the last two points of the segment.
+                            // If only two points, actualStartPoint would be points[0].
+                            Point pointBeforeEnd = points[points.Count - 2];
+                            Vector direction = actualEndPoint - pointBeforeEnd;
 
                             if (direction.Length > 0)
                             {
@@ -372,7 +371,6 @@ namespace RobTeach.Views
                                 arrowStartPoint = actualEndPoint - direction * fixedArrowLineLength;
                                 arrowEndPoint = actualEndPoint;
                                 addIndicator = true;
-                                Trace.WriteLine($"  Line Arrow Calc: ArrowStart=({arrowStartPoint.X:F3}, {arrowStartPoint.Y:F3}), ArrowEnd=({arrowEndPoint.X:F3}, {arrowEndPoint.Y:F3})");
                             }
                         }
                         break;
@@ -389,24 +387,22 @@ namespace RobTeach.Views
                                 arrowStartPoint = actualEndPoint - direction * fixedArrowLineLength;
                                 arrowEndPoint = actualEndPoint;
                                 addIndicator = true;
-                                Trace.WriteLine($"  Arc Arrow Calc: ArrowStart=({arrowStartPoint.X:F3}, {arrowStartPoint.Y:F3}), ArrowEnd=({arrowEndPoint.X:F3}, {arrowEndPoint.Y:F3})");
                             }
                         }
                         break;
                     case "Circle": // Indicates initial direction
                         if (points.Count >= 2)
                         {
-                            Point p0 = points[0];
-                            Point p1 = points[1];
+                            Point p0 = points[0]; // Start of the circle path
+                            Point p1 = points[1]; // Next point to define initial direction
                             Vector direction = p1 - p0;
 
                             if (direction.Length > 0)
                             {
                                 direction.Normalize();
-                                arrowStartPoint = p0;
-                                arrowEndPoint = p0 + direction * fixedArrowLineLength;
+                                arrowStartPoint = p0; // Arrow base at the start point
+                                arrowEndPoint = p0 + direction * fixedArrowLineLength; // Arrow tip points in initial direction
                                 addIndicator = true;
-                                Trace.WriteLine($"  Circle Arrow Calc: ArrowStart=({arrowStartPoint.X:F3}, {arrowStartPoint.Y:F3}), ArrowEnd=({arrowEndPoint.X:F3}, {arrowEndPoint.Y:F3})");
                             }
                         }
                         break;
@@ -415,20 +411,15 @@ namespace RobTeach.Views
                         break;
                 }
 
-                bool canAddIndicator = addIndicator && arrowStartPoint != arrowEndPoint; // Check calculated points before assigning to indicator
-                Trace.WriteLine($"UpdateDirectionIndicator: Condition to add indicator met: {canAddIndicator}");
-
-                if (canAddIndicator)
+                if (addIndicator && arrowStartPoint != arrowEndPoint)
                 {
-                    _directionIndicator.StartPoint = arrowStartPoint;
-                    _directionIndicator.EndPoint = arrowEndPoint;
-                    Trace.WriteLine($"  Final Arrow Points: Start=({_directionIndicator.StartPoint.X:F3}, {_directionIndicator.StartPoint.Y:F3}), End=({_directionIndicator.EndPoint.X:F3}, {_directionIndicator.EndPoint.Y:F3})");
-                    System.Windows.Controls.Panel.SetZIndex(_directionIndicator, 99); // Set a high Z-index
-                    CadCanvas.Children.Add(_directionIndicator);
+                    newIndicator.StartPoint = arrowStartPoint;
+                    newIndicator.EndPoint = arrowEndPoint;
+                    System.Windows.Controls.Panel.SetZIndex(newIndicator, 99); // Set a high Z-index
+                    CadCanvas.Children.Add(newIndicator);
+                    _directionIndicators.Add(newIndicator);
                 }
             }
-            // If no valid trajectory is selected, it has no points, or type is unhandled, indicator is already removed/not added.
-            Trace.Flush(); // Ensure all trace messages are written
         }
 
         private void MoveTrajectoryUpButton_Click(object sender, RoutedEventArgs e)
