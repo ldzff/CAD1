@@ -374,47 +374,18 @@ namespace RobTeach.Views
                         }
                         break;
                     case "Arc":
-                        if (points.Count >= 2) // Need at least two points to define a direction
+                        if (points.Count >= 2)
                         {
-                            Point pointForArrowCenter;
-                            Vector tangentDirection;
+                            Point p0 = points[0]; // First point on arc
+                            Point p1 = points[1]; // Second point to determine initial tangent
+                            Vector direction = p1 - p0;
 
-                            if (points.Count == 2) // Treat as a line segment
+                            if (direction.Length > 0.001) // Check for non-zero length
                             {
-                                pointForArrowCenter = new Point((points[0].X + points[1].X) / 2, (points[0].Y + points[1].Y) / 2);
-                                tangentDirection = points[1] - points[0];
-                            }
-                            else // points.Count >= 3
-                            {
-                                int midIndex = points.Count / 2;
-                                pointForArrowCenter = points[midIndex];
-
-                                // Robust tangent calculation at pointForArrowCenter (points[midIndex])
-                                // Uses central difference method if possible, otherwise forward or backward difference.
-                                if (midIndex > 0 && midIndex < points.Count - 1)
-                                {
-                                    // Central difference: (P[i+1] - P[i-1])
-                                    tangentDirection = points[midIndex + 1] - points[midIndex - 1];
-                                }
-                                else if (midIndex == 0)
-                                {
-                                    // Forward difference: (P[i+1] - P[i])
-                                    // This case implies midIndex = 0. Since points.Count >= 3 in this sub-block effectively (as 2 is handled above), points[1] is valid.
-                                    tangentDirection = points[1] - points[0];
-                                }
-                                else // midIndex == points.Count - 1
-                                {
-                                    // Backward difference: (P[i] - P[i-1])
-                                    // This case implies midIndex is the last index. points[midIndex-1] is valid.
-                                    tangentDirection = points[midIndex] - points[midIndex - 1];
-                                }
-                            }
-
-                            if (tangentDirection.Length > 0.001) // Check for non-zero length before normalizing
-                            {
-                                tangentDirection.Normalize();
-                                arrowStartPoint = pointForArrowCenter - tangentDirection * (fixedArrowLineLength / 2.0);
-                                arrowEndPoint = pointForArrowCenter + tangentDirection * (fixedArrowLineLength / 2.0);
+                                direction.Normalize();
+                                // Center the short arrow around p0
+                                arrowStartPoint = p0 - direction * (fixedArrowLineLength / 2.0);
+                                arrowEndPoint = p0 + direction * (fixedArrowLineLength / 2.0);
                                 addIndicator = true;
                             }
                         }
