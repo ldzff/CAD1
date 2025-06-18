@@ -1328,7 +1328,7 @@ namespace RobTeach.Views
                     return;
                 }
                 var currentPass = _currentConfiguration.SprayPasses[_currentConfiguration.CurrentPassIndex];
-                bool trajectoriesAdded = false;
+                bool selectionStateChanged = false;
 
                 foreach (var wpfShape in _wpfShapeToDxfEntityMap.Keys)
                 {
@@ -1348,7 +1348,7 @@ namespace RobTeach.Views
                         DxfEntity dxfEntity = _wpfShapeToDxfEntityMap[wpfShape];
                         var existingTrajectory = currentPass.Trajectories.FirstOrDefault(t => t.OriginalDxfEntity == dxfEntity);
 
-                        if (existingTrajectory == null)
+                        if (existingTrajectory == null) // Entity is not selected, so select it
                         {
                             var newTrajectory = new Trajectory
                             {
@@ -1356,7 +1356,6 @@ namespace RobTeach.Views
                                 EntityType = dxfEntity.GetType().Name,
                                 IsReversed = false
                             };
-
                             switch (dxfEntity)
                             {
                                 case DxfLine line:
@@ -1384,18 +1383,23 @@ namespace RobTeach.Views
                             }
                             PopulateTrajectoryPoints(newTrajectory);
                             currentPass.Trajectories.Add(newTrajectory);
-                            trajectoriesAdded = true;
+                            selectionStateChanged = true;
+                        }
+                        else // Entity is already selected, so deselect it
+                        {
+                            currentPass.Trajectories.Remove(existingTrajectory);
+                            selectionStateChanged = true;
                         }
                     }
                 }
 
-                if (trajectoriesAdded)
+                if (selectionStateChanged)
                 {
                     isConfigurationDirty = true;
                     RefreshCurrentPassTrajectoriesListBox();
                     RefreshCadCanvasHighlights();
                     UpdateDirectionIndicator();
-                    StatusTextBlock.Text = $"Added entities to {currentPass.PassName}. Total: {currentPass.Trajectories.Count}.";
+                    StatusTextBlock.Text = $"Selection updated in {currentPass.PassName}. Total: {currentPass.Trajectories.Count}.";
                 }
                 e.Handled = true;
             }
