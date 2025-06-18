@@ -56,6 +56,11 @@ namespace RobTeach.Views
         private bool _isPanning;                        // Flag indicating if a pan operation is currently in progress.
         private Rect _dxfBoundingBox = Rect.Empty;      // Stores the calculated bounding box of the entire loaded DXF document.
 
+        // Fields for Marquee Selection
+        private System.Windows.Shapes.Rectangle selectionRectangleUI = null; // The visual rectangle for selection
+        private System.Windows.Point selectionStartPoint;                   // Start point of the selection rectangle
+        private bool isSelectingWithRect = false;                         // Flag indicating if marquee selection is active
+
         // Styling constants for visual feedback
         private static readonly Brush DefaultStrokeBrush = Brushes.DarkSlateGray; // Default color for CAD shapes.
         private static readonly Brush SelectedStrokeBrush = Brushes.DodgerBlue;   // Color for selected CAD shapes.
@@ -1197,9 +1202,204 @@ namespace RobTeach.Views
         private void FitToViewButton_Click(object sender, RoutedEventArgs e) { /* ... (No change) ... */ }
         private void PerformFitToView() { /* ... (No change) ... */ }
         private void CadCanvas_MouseWheel(object sender, MouseWheelEventArgs e) { /* ... (No change) ... */ }
-        private void CadCanvas_MouseDown(object sender, MouseButtonEventArgs e) { /* ... (No change) ... */ }
-        private void CadCanvas_MouseMove(object sender, MouseEventArgs e) { /* ... (No change) ... */ }
-        private void CadCanvas_MouseUp(object sender, MouseButtonEventArgs e) { /* ... (No change) ... */ }
+        private void CadCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.MiddleButton == MouseButtonState.Pressed ||
+                (e.LeftButton == MouseButtonState.Pressed && Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) ) // More robust Ctrl check
+            {
+                _isPanning = true;
+                _panStartPoint = e.GetPosition(this); // Pan relative to MainWindow for this example, or CadCanvas.Parent
+                CadCanvas.CaptureMouse();
+                StatusTextBlock.Text = "Panning...";
+                e.Handled = true;
+            }
+            // Check e.Source to ensure the click originated on the Canvas itself, not on a child like a DxfEntity shape
+            else if (e.LeftButton == MouseButtonState.Pressed && e.Source == CadCanvas)
+            {
+                isSelectingWithRect = true;
+                selectionStartPoint = e.GetPosition(CadCanvas);
+
+                if (selectionRectangleUI != null && CadCanvas.Children.Contains(selectionRectangleUI))
+                {
+                    CadCanvas.Children.Remove(selectionRectangleUI);
+                }
+                selectionRectangleUI = null; // Ensure it's null before creating a new one
+
+                selectionRectangleUI = new System.Windows.Shapes.Rectangle
+                {
+                    Stroke = Brushes.DodgerBlue, // Using SelectedStrokeBrush color
+                    StrokeThickness = 1,
+                    StrokeDashArray = new System.Windows.Media.DoubleCollection { 3, 2 },
+                    Fill = new SolidColorBrush(Color.FromArgb(40, 0, 120, 255)) // Light semi-transparent blue
+                };
+
+                Canvas.SetLeft(selectionRectangleUI, selectionStartPoint.X);
+                Canvas.SetTop(selectionRectangleUI, selectionStartPoint.Y);
+                selectionRectangleUI.Width = 0;
+                selectionRectangleUI.Height = 0;
+
+                // Add to canvas before trying to set ZIndex, though ZIndex might not be strictly needed here
+                // as it's temporary.
+                CadCanvas.Children.Add(selectionRectangleUI);
+                // Panel.SetZIndex(selectionRectangleUI, int.MaxValue); // Optional: ensure it's on top
+
+                CadCanvas.CaptureMouse();
+                StatusTextBlock.Text = "Defining selection area...";
+                e.Handled = true;
+            }
+            // If not handled, and it was a left click, it might be on a DxfEntity shape,
+            // which would be handled by OnCadEntityClicked due to event bubbling if that shape has a handler.
+        }
+        private void CadCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isPanning)
+            {
+                System.Windows.Point currentPanPoint = e.GetPosition(this); // Or CadCanvas.Parent as IInputElement
+                Vector panDelta = currentPanPoint - _panStartPoint;
+                _translateTransform.X += panDelta.X;
+                _translateTransform.Y += panDelta.Y;
+                _panStartPoint = currentPanPoint;
+                e.Handled = true;
+            }
+            else if (isSelectingWithRect && selectionRectangleUI != null)
+            {
+                System.Windows.Point currentMousePos = e.GetPosition(CadCanvas);
+
+                double x = Math.Min(selectionStartPoint.X, currentMousePos.X);
+                double y = Math.Min(selectionStartPoint.Y, currentMousePos.Y);
+                double width = Math.Abs(selectionStartPoint.X - currentMousePos.X);
+                double height = Math.Abs(selectionStartPoint.Y - currentMousePos.Y);
+
+                Canvas.SetLeft(selectionRectangleUI, x);
+                Canvas.SetTop(selectionRectangleUI, y);
+                selectionRectangleUI.Width = width;
+                selectionRectangleUI.Height = height;
+
+                e.Handled = true;
+            }
+        }
+        private void CadCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isPanning)
+            {
+                _isPanning = false;
+                CadCanvas.ReleaseMouseCapture();
+                StatusTextBlock.Text = "Pan complete.";
+                e.Handled = true;
+            }
+            else if (isSelectingWithRect)
+            {
+                isSelectingWithRect = false;
+                CadCanvas.ReleaseMouseCapture();
+
+                if (selectionRectangleUI == null) // Should not happen if isSelectingWithRect was true
+                {
+                    e.Handled = true;
+                    return;
+                }
+
+                Rect finalSelectionRect = new Rect(
+                    Canvas.GetLeft(selectionRectangleUI),
+                    Canvas.GetTop(selectionRectangleUI),
+                    selectionRectangleUI.Width,
+                    selectionRectangleUI.Height);
+
+                // Remove the visual rectangle from canvas
+                CadCanvas.Children.Remove(selectionRectangleUI);
+                selectionRectangleUI = null;
+
+                StatusTextBlock.Text = "Selection processed."; // Or clear
+
+                // Small drag check (if it was more of a click)
+                const double clickThreshold = 5.0;
+                if (finalSelectionRect.Width < clickThreshold && finalSelectionRect.Height < clickThreshold)
+                {
+                    e.Handled = true; // Event handled, but no marquee selection performed
+                    return;
+                }
+
+                // Check for a valid current pass
+                if (_currentConfiguration == null || _currentConfiguration.CurrentPassIndex < 0 ||
+                    _currentConfiguration.CurrentPassIndex >= _currentConfiguration.SprayPasses.Count ||
+                    _currentConfiguration.SprayPasses[_currentConfiguration.CurrentPassIndex].Trajectories == null)
+                {
+                    MessageBox.Show("Please select or create a spray pass first to add entities.", "No Active Pass", MessageBoxButton.OK, MessageBoxImage.Information);
+                    e.Handled = true;
+                    return;
+                }
+                var currentPass = _currentConfiguration.SprayPasses[_currentConfiguration.CurrentPassIndex];
+                bool trajectoriesAdded = false;
+
+                foreach (var wpfShape in _wpfShapeToDxfEntityMap.Keys)
+                {
+                    if (wpfShape.Visibility != Visibility.Visible || wpfShape.RenderedGeometry == null || wpfShape.RenderedGeometry.IsEmpty())
+                    {
+                        continue;
+                    }
+
+                    GeneralTransform canvasToWorldTransform = _transformGroup.Inverse;
+                    if (canvasToWorldTransform == null) continue;
+
+                    Rect selectionRectInWorldCoords = canvasToWorldTransform.TransformBounds(finalSelectionRect);
+                    Rect shapeGeometryBounds = wpfShape.RenderedGeometry.Bounds;
+
+                    if (selectionRectInWorldCoords.IntersectsWith(shapeGeometryBounds))
+                    {
+                        DxfEntity dxfEntity = _wpfShapeToDxfEntityMap[wpfShape];
+                        var existingTrajectory = currentPass.Trajectories.FirstOrDefault(t => t.OriginalDxfEntity == dxfEntity);
+
+                        if (existingTrajectory == null)
+                        {
+                            var newTrajectory = new Trajectory
+                            {
+                                OriginalDxfEntity = dxfEntity,
+                                EntityType = dxfEntity.GetType().Name,
+                                IsReversed = false
+                            };
+
+                            switch (dxfEntity)
+                            {
+                                case DxfLine line:
+                                    newTrajectory.PrimitiveType = "Line";
+                                    newTrajectory.LineStartPoint = line.P1;
+                                    newTrajectory.LineEndPoint = line.P2;
+                                    break;
+                                case DxfArc arc:
+                                    newTrajectory.PrimitiveType = "Arc";
+                                    newTrajectory.ArcCenter = arc.Center;
+                                    newTrajectory.ArcRadius = arc.Radius;
+                                    newTrajectory.ArcStartAngle = arc.StartAngle;
+                                    newTrajectory.ArcEndAngle = arc.EndAngle;
+                                    newTrajectory.ArcNormal = arc.Normal;
+                                    break;
+                                case DxfCircle circle:
+                                    newTrajectory.PrimitiveType = "Circle";
+                                    newTrajectory.CircleCenter = circle.Center;
+                                    newTrajectory.CircleRadius = circle.Radius;
+                                    newTrajectory.CircleNormal = circle.Normal;
+                                    break;
+                                default:
+                                    newTrajectory.PrimitiveType = dxfEntity.GetType().Name;
+                                    break;
+                            }
+                            PopulateTrajectoryPoints(newTrajectory);
+                            currentPass.Trajectories.Add(newTrajectory);
+                            trajectoriesAdded = true;
+                        }
+                    }
+                }
+
+                if (trajectoriesAdded)
+                {
+                    isConfigurationDirty = true;
+                    RefreshCurrentPassTrajectoriesListBox();
+                    RefreshCadCanvasHighlights();
+                    UpdateDirectionIndicator();
+                    StatusTextBlock.Text = $"Added entities to {currentPass.PassName}. Total: {currentPass.Trajectories.Count}.";
+                }
+                e.Handled = true;
+            }
+        }
         /// <summary>
         /// Calculates the bounding rectangle for a given DXF entity.
         /// </summary>
