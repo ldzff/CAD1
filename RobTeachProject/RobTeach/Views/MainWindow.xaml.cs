@@ -305,17 +305,26 @@ namespace RobTeach.Views
                     // ToolTip = $"Order: {i + 1}, Entity: {selectedTrajectory.PrimitiveType}" // Optional: add a tooltip
                 };
 
-                // Positioning Logic: Near the first point of the trajectory
-                // The first point's coordinates are in the world/DXF coordinate system.
-                // The _transformGroup on CadCanvas will handle transforming this to view coordinates.
-                Point firstPoint = selectedTrajectory.Points[0];
+                Point anchorPoint;
+                if (selectedTrajectory.PrimitiveType == "Line" && selectedTrajectory.Points.Count >= 2)
+                {
+                    Point p_start = selectedTrajectory.Points[0];
+                    Point p_end = selectedTrajectory.Points[selectedTrajectory.Points.Count - 1];
+                    anchorPoint = new Point((p_start.X + p_end.X) / 2, (p_start.Y + p_end.Y) / 2);
+                }
+                else // For Arcs, Circles, or Lines with < 2 points (though points.Any() is already checked)
+                {
+                    int midIndex = selectedTrajectory.Points.Count / 2; // Integer division gives lower midpoint for even counts
+                    anchorPoint = selectedTrajectory.Points[midIndex];
+                }
 
                 // Define offsets - these might need tweaking after visual review
-                double offsetX = 5;  // Offset to the right of the point
-                double offsetY = -15; // Offset above the point (FontSize is 10, Padding makes it taller)
+                // Keeping previous offsets as a starting point
+                double offsetX = 5;  // Offset to the right of the anchor point
+                double offsetY = -15; // Offset above the anchor point (FontSize is 10, Padding makes it taller)
 
-                Canvas.SetLeft(orderLabel, firstPoint.X + offsetX);
-                Canvas.SetTop(orderLabel, firstPoint.Y + offsetY);
+                Canvas.SetLeft(orderLabel, anchorPoint.X + offsetX);
+                Canvas.SetTop(orderLabel, anchorPoint.Y + offsetY);
                 Panel.SetZIndex(orderLabel, 100); // Ensure labels are on top
 
                 CadCanvas.Children.Add(orderLabel);
