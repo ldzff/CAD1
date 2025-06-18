@@ -726,15 +726,57 @@ namespace RobTeach.Views
                     _currentDxfFilePath = openFileDialog.FileName;
                     StatusTextBlock.Text = $"Loading DXF: {Path.GetFileName(_currentDxfFilePath)}...";
 
+                    // 1. Clear canvas and DXF-specific visual maps
                     CadCanvas.Children.Clear();
-                    _wpfShapeToDxfEntityMap.Clear(); _selectedDxfEntities.Clear();
-                    _trajectoryPreviewPolylines.Clear(); _dxfEntityHandleMap.Clear();
+                    _wpfShapeToDxfEntityMap.Clear();
+                    _trajectoryPreviewPolylines.Clear();
+                    _selectedDxfEntities.Clear();
+                    _dxfEntityHandleMap.Clear();
+
+                    // 2. Reset Product Name and Configuration Object
+                    ProductNameTextBox.Text = $"Product_{DateTime.Now:yyyyMMddHHmmss}";
                     _currentConfiguration = new Models.Configuration { ProductName = ProductNameTextBox.Text };
                     _currentLoadedConfigPath = null;
+
+                    // 3. Reset UI related to Configuration (Passes, Trajectories, Details)
+                    if (_currentConfiguration.SprayPasses == null || !_currentConfiguration.SprayPasses.Any())
+                    {
+                        _currentConfiguration.SprayPasses = new List<SprayPass> { new SprayPass { PassName = "Default Pass 1" } };
+                        _currentConfiguration.CurrentPassIndex = 0;
+                    }
+                    else if (_currentConfiguration.CurrentPassIndex < 0 || _currentConfiguration.CurrentPassIndex >= _currentConfiguration.SprayPasses.Count)
+                    {
+                         _currentConfiguration.CurrentPassIndex = _currentConfiguration.SprayPasses.Any() ? 0 : -1;
+                    }
+
+                    SprayPassesListBox.ItemsSource = null;
+                    SprayPassesListBox.ItemsSource = _currentConfiguration.SprayPasses;
+
+                    if (_currentConfiguration.CurrentPassIndex >= 0 && _currentConfiguration.CurrentPassIndex < SprayPassesListBox.Items.Count)
+                    {
+                        SprayPassesListBox.SelectedIndex = _currentConfiguration.CurrentPassIndex;
+                    }
+                    else if (SprayPassesListBox.Items.Count > 0)
+                    {
+                        SprayPassesListBox.SelectedIndex = 0; // Fallback
+                        _currentConfiguration.CurrentPassIndex = 0;
+                    }
+                    else
+                    {
+                         _currentConfiguration.CurrentPassIndex = -1; // No passes, no selection
+                    }
+
+                    RefreshCurrentPassTrajectoriesListBox();
+                    UpdateSelectedTrajectoryDetailUI();
+                    RefreshCadCanvasHighlights();
+                    UpdateTrajectoryPreview();
+                    UpdateDirectionIndicator();
+
+                    // 4. Reset DXF document state
                     _currentDxfDocument = null;
                     _dxfBoundingBox = Rect.Empty;
-                    UpdateTrajectoryPreview();
-                    UpdateDirectionIndicator(); // Clear old indicator early
+
+                    // isConfigurationDirty = false; // This will be set AFTER the new DXF is loaded and processed successfully.
 
                     _currentDxfDocument = _cadService.LoadDxf(_currentDxfFilePath);
 
