@@ -773,6 +773,176 @@ namespace RobTeach.Views
             }
         }
 
+        private void LineStartZTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
+            {
+                if (double.TryParse(LineStartZTextBox.Text, out double newZ))
+                {
+                    selectedTrajectory.LineStartPoint = new DxfPoint(
+                        selectedTrajectory.LineStartPoint.X,
+                        selectedTrajectory.LineStartPoint.Y,
+                        newZ);
+                    isConfigurationDirty = true;
+                    CurrentPassTrajectoriesListBox.Items.Refresh(); // Update display if Z is shown
+                    // Potentially call PopulateTrajectoryPoints(selectedTrajectory) if Z affects point generation for some reason
+                }
+                else
+                {
+                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    LineStartZTextBox.Text = selectedTrajectory.LineStartPoint.Z.ToString("F3"); // Revert
+                }
+            }
+        }
+
+        private void LineEndZTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
+            {
+                if (double.TryParse(LineEndZTextBox.Text, out double newZ))
+                {
+                    selectedTrajectory.LineEndPoint = new DxfPoint(
+                        selectedTrajectory.LineEndPoint.X,
+                        selectedTrajectory.LineEndPoint.Y,
+                        newZ);
+                    isConfigurationDirty = true;
+                    CurrentPassTrajectoriesListBox.Items.Refresh();
+                }
+                else
+                {
+                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    LineEndZTextBox.Text = selectedTrajectory.LineEndPoint.Z.ToString("F3"); // Revert
+                }
+            }
+        }
+
+        private void ArcCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Arc")
+            {
+                if (double.TryParse(ArcCenterZTextBox.Text, out double newZ))
+                {
+                    selectedTrajectory.ArcCenter = new DxfPoint(
+                        selectedTrajectory.ArcCenter.X,
+                        selectedTrajectory.ArcCenter.Y,
+                        newZ);
+                    isConfigurationDirty = true;
+                    CurrentPassTrajectoriesListBox.Items.Refresh();
+                }
+                else
+                {
+                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    ArcCenterZTextBox.Text = selectedTrajectory.ArcCenter.Z.ToString("F3"); // Revert
+                }
+            }
+        }
+
+        private void CircleCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Circle")
+            {
+                if (double.TryParse(CircleCenterZTextBox.Text, out double newZ))
+                {
+                    selectedTrajectory.CircleCenter = new DxfPoint(
+                        selectedTrajectory.CircleCenter.X,
+                        selectedTrajectory.CircleCenter.Y,
+                        newZ);
+                    isConfigurationDirty = true;
+                    CurrentPassTrajectoriesListBox.Items.Refresh();
+                }
+                else
+                {
+                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CircleCenterZTextBox.Text = selectedTrajectory.CircleCenter.Z.ToString("F3"); // Revert
+                }
+            }
+        }
+
+        private void LineStartZTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
+            {
+                if (double.TryParse(LineStartZTextBox.Text, out double newZ))
+                {
+                    selectedTrajectory.LineStartPoint = new DxfPoint(
+                        selectedTrajectory.LineStartPoint.X,
+                        selectedTrajectory.LineStartPoint.Y,
+                        newZ);
+                    isConfigurationDirty = true;
+                    CurrentPassTrajectoriesListBox.Items.Refresh(); // Update display if Z is shown
+                    // Potentially call PopulateTrajectoryPoints(selectedTrajectory) if Z affects point generation for some reason
+                }
+                else
+                {
+                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    LineStartZTextBox.Text = selectedTrajectory.LineStartPoint.Z.ToString("F3"); // Revert
+                }
+            }
+        }
+
+        private void LineEndZTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Line")
+            {
+                if (double.TryParse(LineEndZTextBox.Text, out double newZ))
+                {
+                    selectedTrajectory.LineEndPoint = new DxfPoint(
+                        selectedTrajectory.LineEndPoint.X,
+                        selectedTrajectory.LineEndPoint.Y,
+                        newZ);
+                    isConfigurationDirty = true;
+                    CurrentPassTrajectoriesListBox.Items.Refresh();
+                }
+                else
+                {
+                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    LineEndZTextBox.Text = selectedTrajectory.LineEndPoint.Z.ToString("F3"); // Revert
+                }
+            }
+        }
+
+        private void ArcCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Arc")
+            {
+                if (double.TryParse(ArcCenterZTextBox.Text, out double newZ))
+                {
+                    selectedTrajectory.ArcCenter = new DxfPoint(
+                        selectedTrajectory.ArcCenter.X,
+                        selectedTrajectory.ArcCenter.Y,
+                        newZ);
+                    isConfigurationDirty = true;
+                    CurrentPassTrajectoriesListBox.Items.Refresh();
+                }
+                else
+                {
+                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    ArcCenterZTextBox.Text = selectedTrajectory.ArcCenter.Z.ToString("F3"); // Revert
+                }
+            }
+        }
+
+        private void CircleCenterZTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory && selectedTrajectory.PrimitiveType == "Circle")
+            {
+                if (double.TryParse(CircleCenterZTextBox.Text, out double newZ))
+                {
+                    selectedTrajectory.CircleCenter = new DxfPoint(
+                        selectedTrajectory.CircleCenter.X,
+                        selectedTrajectory.CircleCenter.Y,
+                        newZ);
+                    isConfigurationDirty = true;
+                    CurrentPassTrajectoriesListBox.Items.Refresh();
+                }
+                else
+                {
+                    MessageBox.Show("Invalid Z value. Please enter a valid number.", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CircleCenterZTextBox.Text = selectedTrajectory.CircleCenter.Z.ToString("F3"); // Revert
+                }
+            }
+        }
+
         /// <summary>
         /// Handles the Closing event of the window. Ensures Modbus connection is disconnected.
         /// </summary>
@@ -1522,16 +1692,42 @@ namespace RobTeach.Views
 
             if (saveFileDialog.ShowDialog() == true)
             {
-                // Ensure the configuration object has the latest product name
+                // Ensure the _currentConfiguration object has the latest product name from the UI
+                // This is done before deciding what to filter into configToSave.
                 _currentConfiguration.ProductName = ProductNameTextBox.Text;
-                // CreateConfigurationFromCurrentState(true) was called here before,
-                // but _currentConfiguration should already be up-to-date due to other UI interactions.
-                // If CreateConfigurationFromCurrentState did more, that logic might need to be re-evaluated.
-                // For now, directly using _currentConfiguration.
 
+                Configuration configToSave = new Configuration
+                {
+                    ProductName = _currentConfiguration.ProductName,
+                    CurrentPassIndex = _currentConfiguration.CurrentPassIndex, // Preserve the selected pass index
+                    SprayPasses = new List<SprayPass>()
+                };
+
+                if (_currentConfiguration.SprayPasses != null) // Ensure SprayPasses list itself is not null
+                {
+                    foreach (var originalPass in _currentConfiguration.SprayPasses)
+                    {
+                        // Only include passes that actually contain trajectories
+                        if (originalPass.Trajectories != null && originalPass.Trajectories.Any())
+                        {
+                            SprayPass passToSave = new SprayPass
+                            {
+                                PassName = originalPass.PassName
+                                // If SprayPass has other serializable properties, copy them here
+                            };
+                            // Copy the list of trajectories for this pass.
+                            // These are the trajectories that are actively configured.
+                            passToSave.Trajectories = new List<Trajectory>(originalPass.Trajectories);
+
+                            configToSave.SprayPasses.Add(passToSave);
+                        }
+                    }
+                }
+
+                // Now, save the filtered configuration object
                 try
                 {
-                    _configService.SaveConfiguration(_currentConfiguration, saveFileDialog.FileName);
+                    _configService.SaveConfiguration(configToSave, saveFileDialog.FileName);
                     StatusTextBlock.Text = $"Configuration saved to {Path.GetFileName(saveFileDialog.FileName)}";
                     _currentLoadedConfigPath = saveFileDialog.FileName; // Update current loaded path
                     return true; // Save successful
