@@ -47,6 +47,7 @@ namespace RobTeach.Views
         private readonly Dictionary<string, DxfEntity> _dxfEntityHandleMap = new Dictionary<string, DxfEntity>(); // Maps DXF entity handles to entities for quick lookup when loading configs.
         private readonly List<System.Windows.Shapes.Polyline> _trajectoryPreviewPolylines = new List<System.Windows.Shapes.Polyline>(); // Keeps track of trajectory preview polylines for easy removal.
         private List<DirectionIndicator> _directionIndicators; // Field for the direction indicator arrow
+        private List<System.Windows.Controls.TextBlock> _orderNumberLabels = new List<System.Windows.Controls.TextBlock>();
 
         // Fields for CAD Canvas Zoom/Pan functionality
         private ScaleTransform _scaleTransform;         // Handles scaling (zoom) of the canvas content.
@@ -228,6 +229,7 @@ namespace RobTeach.Views
             SprayPassesListBox.SelectedItem = newPass;
             isConfigurationDirty = true;
             UpdateDirectionIndicator(); // New pass selected, current trajectory selection changes
+            UpdateOrderNumberLabels();
         }
 
         private void RemovePassButton_Click(object sender, RoutedEventArgs e)
@@ -257,6 +259,67 @@ namespace RobTeach.Views
                 RefreshCurrentPassTrajectoriesListBox(); // Update trajectory list for new selected pass
                 isConfigurationDirty = true;
                 UpdateDirectionIndicator(); // Pass removed, current trajectory selection changes
+                UpdateOrderNumberLabels();
+            }
+        }
+
+        private void UpdateOrderNumberLabels()
+        {
+            // Clear existing labels
+            foreach (var label in _orderNumberLabels)
+            {
+                if (CadCanvas.Children.Contains(label))
+                {
+                    CadCanvas.Children.Remove(label);
+                }
+            }
+            _orderNumberLabels.Clear();
+
+            // Check for valid current pass and trajectories
+            if (_currentConfiguration == null ||
+                _currentConfiguration.CurrentPassIndex < 0 ||
+                _currentConfiguration.CurrentPassIndex >= _currentConfiguration.SprayPasses.Count ||
+                _currentConfiguration.SprayPasses[_currentConfiguration.CurrentPassIndex].Trajectories == null)
+            {
+                return;
+            }
+
+            var currentPassTrajectories = _currentConfiguration.SprayPasses[_currentConfiguration.CurrentPassIndex].Trajectories;
+
+            for (int i = 0; i < currentPassTrajectories.Count; i++)
+            {
+                var selectedTrajectory = currentPassTrajectories[i];
+
+                if (selectedTrajectory.Points == null || !selectedTrajectory.Points.Any())
+                {
+                    continue; // Skip if no points to base position on
+                }
+
+                TextBlock orderLabel = new TextBlock
+                {
+                    Text = (i + 1).ToString(),
+                    FontSize = 10,
+                    Foreground = Brushes.DarkSlateBlue, // Changed to DarkSlateBlue for better contrast potentially
+                    Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 180)), // Semi-transparent light yellow
+                    Padding = new Thickness(2, 0, 2, 0),
+                    // ToolTip = $"Order: {i + 1}, Entity: {selectedTrajectory.PrimitiveType}" // Optional: add a tooltip
+                };
+
+                // Positioning Logic: Near the first point of the trajectory
+                // The first point's coordinates are in the world/DXF coordinate system.
+                // The _transformGroup on CadCanvas will handle transforming this to view coordinates.
+                Point firstPoint = selectedTrajectory.Points[0];
+
+                // Define offsets - these might need tweaking after visual review
+                double offsetX = 5;  // Offset to the right of the point
+                double offsetY = -15; // Offset above the point (FontSize is 10, Padding makes it taller)
+
+                Canvas.SetLeft(orderLabel, firstPoint.X + offsetX);
+                Canvas.SetTop(orderLabel, firstPoint.Y + offsetY);
+                Panel.SetZIndex(orderLabel, 100); // Ensure labels are on top
+
+                CadCanvas.Children.Add(orderLabel);
+                _orderNumberLabels.Add(orderLabel);
             }
         }
 
@@ -292,6 +355,7 @@ namespace RobTeach.Views
             UpdateSelectedTrajectoryDetailUI(); // Renamed
             RefreshCadCanvasHighlights();
             UpdateDirectionIndicator(); // Spray pass selection changed
+            UpdateOrderNumberLabels();
         }
 
         private void RefreshCurrentPassTrajectoriesListBox()
@@ -450,6 +514,7 @@ namespace RobTeach.Views
                 isConfigurationDirty = true;
                 RefreshCadCanvasHighlights(); // Visual update after reorder
                 UpdateDirectionIndicator(); // Selection might change or visual needs refresh
+                UpdateOrderNumberLabels();
             }
         }
 
@@ -471,6 +536,7 @@ namespace RobTeach.Views
                 isConfigurationDirty = true;
                 RefreshCadCanvasHighlights(); // Visual update after reorder
                 UpdateDirectionIndicator(); // Selection might change or visual needs refresh
+                UpdateOrderNumberLabels();
             }
         }
 
@@ -776,6 +842,7 @@ namespace RobTeach.Views
                     RefreshCadCanvasHighlights();
                     UpdateTrajectoryPreview();
                     UpdateDirectionIndicator();
+                    UpdateOrderNumberLabels();
 
                     // 4. Reset DXF document state
                     _currentDxfDocument = null;
@@ -815,6 +882,7 @@ namespace RobTeach.Views
                     StatusTextBlock.Text = $"Loaded: {Path.GetFileName(_currentDxfFilePath)}. Click shapes to select.";
                     isConfigurationDirty = false;
                     UpdateDirectionIndicator(); // Update after loading and potential default selections
+                    UpdateOrderNumberLabels();
                 } else { StatusTextBlock.Text = "DXF loading cancelled."; }
             }
             catch (FileNotFoundException fnfEx) {
@@ -822,6 +890,7 @@ namespace RobTeach.Views
                 MessageBox.Show($"DXF file not found:\n{fnfEx.Message}", "Error Loading DXF", MessageBoxButton.OK, MessageBoxImage.Error);
                 _currentDxfDocument = null;
                 isConfigurationDirty = false;
+                UpdateOrderNumberLabels();
             }
             // Removed specific catch for netDxf.DxfVersionNotSupportedException. General Exception will handle DXF-specific errors.
             catch (Exception ex) {
@@ -835,6 +904,7 @@ namespace RobTeach.Views
                 isConfigurationDirty = false;
                 UpdateTrajectoryPreview();
                 UpdateDirectionIndicator(); // Clear indicator on error too
+                UpdateOrderNumberLabels();
             }
         }
 
@@ -962,6 +1032,7 @@ namespace RobTeach.Views
                 Trace.WriteLine("  -- About to call UpdateDirectionIndicator from OnCadEntityClicked");
                 Trace.Flush();
                 UpdateDirectionIndicator(); // Selection changed by clicking CAD entity
+                UpdateOrderNumberLabels();
             }
             else
             {
@@ -1112,6 +1183,7 @@ namespace RobTeach.Views
                     UpdateSelectedTrajectoryDetailUI(); // Renamed: Update nozzle UI for potentially selected trajectory
                     RefreshCadCanvasHighlights(); // Update canvas highlights for the loaded pass
                     UpdateDirectionIndicator(); // Config loaded, selection might have changed
+                    UpdateOrderNumberLabels();
 
                     // Assuming _cadService.GetWpfShapesFromDxf and entity selection logic
                     // might need to be re-run or updated if the config implies specific CAD entities.
@@ -1135,6 +1207,7 @@ namespace RobTeach.Views
                     // LowerNozzleOnCheckBox_Changed(null, null); // Removed
                     isConfigurationDirty = false;
                     UpdateDirectionIndicator(); // Clear indicator if error during load
+                    UpdateOrderNumberLabels();
                 }
             }
             else
@@ -1399,6 +1472,7 @@ namespace RobTeach.Views
                     RefreshCurrentPassTrajectoriesListBox();
                     RefreshCadCanvasHighlights();
                     UpdateDirectionIndicator();
+                    UpdateOrderNumberLabels();
                     StatusTextBlock.Text = $"Selection updated in {currentPass.PassName}. Total: {currentPass.Trajectories.Count}.";
                 }
                 e.Handled = true;
