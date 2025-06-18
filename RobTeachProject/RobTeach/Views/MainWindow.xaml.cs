@@ -333,7 +333,7 @@ namespace RobTeach.Views
                 return;
             }
 
-            const double fixedArrowLineLength = 15.0; // Fixed visual length for the arrow's line segment
+            const double fixedArrowLineLength = 8.0; // Fixed visual length for the arrow's line segment
 
             foreach (var selectedTrajectory in currentPass.Trajectories)
             {
@@ -344,7 +344,7 @@ namespace RobTeach.Views
 
                 var newIndicator = new DirectionIndicator
                 {
-                    Color = System.Windows.Media.Brushes.Blue,
+                    Color = SelectedStrokeBrush,
                     ArrowheadSize = 8,
                     StrokeThickness = 1.5
                 };
@@ -359,49 +359,69 @@ namespace RobTeach.Views
                     case "Line":
                         if (points.Count >= 2)
                         {
-                            Point actualEndPoint = points[points.Count - 1];
-                            // For direction, use the last two points of the segment.
-                            // If only two points, actualStartPoint would be points[0].
-                            Point pointBeforeEnd = points[points.Count - 2];
-                            Vector direction = actualEndPoint - pointBeforeEnd;
+                            Point p_start = points[0];
+                            Point p_end = points[points.Count - 1];
+                            Point midPoint = new Point((p_start.X + p_end.X) / 2, (p_start.Y + p_end.Y) / 2);
+                            Vector direction = p_end - p_start;
 
                             if (direction.Length > 0)
                             {
                                 direction.Normalize();
-                                arrowStartPoint = actualEndPoint - direction * fixedArrowLineLength;
-                                arrowEndPoint = actualEndPoint;
+                                arrowStartPoint = midPoint - direction * (fixedArrowLineLength / 2.0);
+                                arrowEndPoint = midPoint + direction * (fixedArrowLineLength / 2.0);
                                 addIndicator = true;
                             }
                         }
                         break;
                     case "Arc":
-                        if (points.Count >= 2)
+                        if (points.Count >= 3) // Need at least 3 points for a good midpoint tangent
                         {
-                            Point actualEndPoint = points[points.Count - 1];
-                            Point pointBeforeEnd = points[points.Count - 2];
-                            Vector direction = actualEndPoint - pointBeforeEnd;
+                            int midIndex = points.Count / 2;
+                            Point midPointOnArc = points[midIndex];
+                            Point pointBeforeMid = points[midIndex - 1];
+                            Point pointAfterMid = (midIndex + 1 < points.Count) ? points[midIndex + 1] : midPointOnArc;
 
+                            Vector tangentDirection;
+                            if (midIndex > 0 && midIndex < points.Count - 1) tangentDirection = points[midIndex + 1] - points[midIndex - 1];
+                            else if (midIndex == 0 && points.Count > 1) tangentDirection = points[1] - points[0]; // Should not happen if points.Count >=3
+                            else tangentDirection = points[points.Count - 1] - points[points.Count - 2]; // Should not happen if points.Count >=3
+
+                            if (tangentDirection.Length > 0)
+                            {
+                                tangentDirection.Normalize();
+                                arrowStartPoint = midPointOnArc - tangentDirection * (fixedArrowLineLength / 2.0);
+                                arrowEndPoint = midPointOnArc + tangentDirection * (fixedArrowLineLength / 2.0);
+                                addIndicator = true;
+                            }
+                        }
+                        else if (points.Count == 2) // Fallback for 2-point arcs (treat as line)
+                        {
+                            Point p_start = points[0];
+                            Point p_end = points[1];
+                            Point midPoint = new Point((p_start.X + p_end.X) / 2, (p_start.Y + p_end.Y) / 2);
+                            Vector direction = p_end - p_start;
                             if (direction.Length > 0)
                             {
                                 direction.Normalize();
-                                arrowStartPoint = actualEndPoint - direction * fixedArrowLineLength;
-                                arrowEndPoint = actualEndPoint;
+                                arrowStartPoint = midPoint - direction * (fixedArrowLineLength / 2.0);
+                                arrowEndPoint = midPoint + direction * (fixedArrowLineLength / 2.0);
                                 addIndicator = true;
                             }
                         }
                         break;
-                    case "Circle": // Indicates initial direction
+                    case "Circle":
                         if (points.Count >= 2)
                         {
-                            Point p0 = points[0]; // Start of the circle path
-                            Point p1 = points[1]; // Next point to define initial direction
+                            Point p0 = points[0]; // First point on circumference
+                            Point p1 = points[1]; // Second point to determine initial tangent
                             Vector direction = p1 - p0;
 
                             if (direction.Length > 0)
                             {
                                 direction.Normalize();
-                                arrowStartPoint = p0; // Arrow base at the start point
-                                arrowEndPoint = p0 + direction * fixedArrowLineLength; // Arrow tip points in initial direction
+                                // Center the short arrow around p0
+                                arrowStartPoint = p0 - direction * (fixedArrowLineLength / 2.0);
+                                arrowEndPoint = p0 + direction * (fixedArrowLineLength / 2.0);
                                 addIndicator = true;
                             }
                         }
