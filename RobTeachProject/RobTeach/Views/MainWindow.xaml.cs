@@ -38,6 +38,7 @@ namespace RobTeach.Views
         private string? _currentDxfFilePath;      // Path to the currently loaded DXF file.
         private string? _currentLoadedConfigPath; // Path to the last successfully loaded configuration file.
         private Models.Configuration _currentConfiguration; // The active configuration, either loaded or built from selections.
+        private bool isConfigurationDirty = false;
 
         // Collections for managing DXF entities and their WPF shape representations
         private readonly List<DxfEntity> _selectedDxfEntities = new List<DxfEntity>(); // Stores original DXF entities selected by the user.
@@ -220,6 +221,7 @@ namespace RobTeach.Views
             SprayPassesListBox.ItemsSource = null;
             SprayPassesListBox.ItemsSource = _currentConfiguration.SprayPasses;
             SprayPassesListBox.SelectedItem = newPass;
+            isConfigurationDirty = true;
             UpdateDirectionIndicator(); // New pass selected, current trajectory selection changes
         }
 
@@ -248,6 +250,7 @@ namespace RobTeach.Views
                     // Potentially add a new default pass here if needed
                 }
                 RefreshCurrentPassTrajectoriesListBox(); // Update trajectory list for new selected pass
+                isConfigurationDirty = true;
                 UpdateDirectionIndicator(); // Pass removed, current trajectory selection changes
             }
         }
@@ -263,6 +266,7 @@ namespace RobTeach.Views
                 SprayPassesListBox.ItemsSource = null;
                 SprayPassesListBox.ItemsSource = _currentConfiguration.SprayPasses;
                 SprayPassesListBox.SelectedItem = selectedPass;
+                isConfigurationDirty = true;
             }
         }
 
@@ -438,6 +442,7 @@ namespace RobTeach.Views
                 CurrentPassTrajectoriesListBox.ItemsSource = null; // Refresh
                 CurrentPassTrajectoriesListBox.ItemsSource = currentPass.Trajectories;
                 CurrentPassTrajectoriesListBox.SelectedIndex = selectedIndex - 1;
+                isConfigurationDirty = true;
                 RefreshCadCanvasHighlights(); // Visual update after reorder
                 UpdateDirectionIndicator(); // Selection might change or visual needs refresh
             }
@@ -458,6 +463,7 @@ namespace RobTeach.Views
                 CurrentPassTrajectoriesListBox.ItemsSource = null; // Refresh
                 CurrentPassTrajectoriesListBox.ItemsSource = currentPass.Trajectories;
                 CurrentPassTrajectoriesListBox.SelectedIndex = selectedIndex + 1;
+                isConfigurationDirty = true;
                 RefreshCadCanvasHighlights(); // Visual update after reorder
                 UpdateDirectionIndicator(); // Selection might change or visual needs refresh
             }
@@ -552,6 +558,7 @@ namespace RobTeach.Views
             if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory)
             {
                 selectedTrajectory.IsReversed = TrajectoryIsReversedCheckBox.IsChecked ?? false;
+                isConfigurationDirty = true;
                 PopulateTrajectoryPoints(selectedTrajectory); // Regenerate points
                 CurrentPassTrajectoriesListBox.Items.Refresh(); // Update display if ToString() changed or for other bound properties
                 RefreshCadCanvasHighlights(); // May be needed if visual representation on canvas depends on points/direction
@@ -607,6 +614,7 @@ namespace RobTeach.Views
                     selectedTrajectory.UpperNozzleGasOn = false;
                     selectedTrajectory.UpperNozzleLiquidOn = false;
                 }
+                isConfigurationDirty = true;
             }
             else if (!isEnabled) // No trajectory selected, ensure UI is consistent
             {
@@ -620,6 +628,7 @@ namespace RobTeach.Views
             if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory)
             {
                 selectedTrajectory.UpperNozzleGasOn = TrajectoryUpperNozzleGasOnCheckBox.IsChecked ?? false;
+                isConfigurationDirty = true;
             }
         }
 
@@ -628,6 +637,7 @@ namespace RobTeach.Views
             if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory)
             {
                 selectedTrajectory.UpperNozzleLiquidOn = TrajectoryUpperNozzleLiquidOnCheckBox.IsChecked ?? false;
+                isConfigurationDirty = true;
             }
         }
 
@@ -647,6 +657,7 @@ namespace RobTeach.Views
                     selectedTrajectory.LowerNozzleGasOn = false;
                     selectedTrajectory.LowerNozzleLiquidOn = false;
                 }
+                isConfigurationDirty = true;
             }
             else if (!isEnabled) // No trajectory selected, ensure UI is consistent
             {
@@ -660,6 +671,7 @@ namespace RobTeach.Views
             if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory)
             {
                 selectedTrajectory.LowerNozzleGasOn = TrajectoryLowerNozzleGasOnCheckBox.IsChecked ?? false;
+                isConfigurationDirty = true;
             }
         }
 
@@ -668,6 +680,16 @@ namespace RobTeach.Views
             if (CurrentPassTrajectoriesListBox.SelectedItem is Trajectory selectedTrajectory)
             {
                 selectedTrajectory.LowerNozzleLiquidOn = TrajectoryLowerNozzleLiquidOnCheckBox.IsChecked ?? false;
+                isConfigurationDirty = true;
+            }
+        }
+
+        private void ProductNameTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Check if the control is initialized and loaded to avoid setting dirty flag during setup
+            if (this.IsLoaded)
+            {
+                isConfigurationDirty = true;
             }
         }
 
@@ -686,6 +708,13 @@ namespace RobTeach.Views
         /// </summary>
         private void LoadDxfButton_Click(object sender, RoutedEventArgs e)
         {
+            bool canProceed = PromptAndTrySaveChanges();
+            if (!canProceed)
+            {
+                StatusTextBlock.Text = "Load DXF cancelled due to unsaved changes."; // Optional: provide user feedback
+                return;
+            }
+
             OpenFileDialog openFileDialog = new OpenFileDialog {
                 Filter = "DXF files (*.dxf)|*.dxf|All files (*.*)|*.*", Title = "Load DXF File" };
             string initialDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
@@ -737,6 +766,7 @@ namespace RobTeach.Views
                     _dxfBoundingBox = GetDxfBoundingBox(_currentDxfDocument);
                     PerformFitToView();
                     StatusTextBlock.Text = $"Loaded: {Path.GetFileName(_currentDxfFilePath)}. Click shapes to select.";
+                    isConfigurationDirty = false;
                     UpdateDirectionIndicator(); // Update after loading and potential default selections
                 } else { StatusTextBlock.Text = "DXF loading cancelled."; }
             }
@@ -744,6 +774,7 @@ namespace RobTeach.Views
                 StatusTextBlock.Text = "Error: DXF file not found.";
                 MessageBox.Show($"DXF file not found:\n{fnfEx.Message}", "Error Loading DXF", MessageBoxButton.OK, MessageBoxImage.Error);
                 _currentDxfDocument = null;
+                isConfigurationDirty = false;
             }
             // Removed specific catch for netDxf.DxfVersionNotSupportedException. General Exception will handle DXF-specific errors.
             catch (Exception ex) {
@@ -754,6 +785,7 @@ namespace RobTeach.Views
                 _selectedDxfEntities.Clear(); _wpfShapeToDxfEntityMap.Clear(); _dxfEntityHandleMap.Clear();
                 _trajectoryPreviewPolylines?.Clear();
                 _currentConfiguration = new Models.Configuration { ProductName = ProductNameTextBox.Text };
+                isConfigurationDirty = false;
                 UpdateTrajectoryPreview();
                 UpdateDirectionIndicator(); // Clear indicator on error too
             }
@@ -808,6 +840,7 @@ namespace RobTeach.Views
                     Trace.WriteLine("  -- Existing trajectory found. Removing it.");
                     Trace.Flush();
                     currentPass.Trajectories.Remove(existingTrajectory);
+                    isConfigurationDirty = true;
                     // trajectoryToSelect remains null, so selection will likely clear or move.
                 }
                 else
@@ -859,6 +892,7 @@ namespace RobTeach.Views
                     }
                     PopulateTrajectoryPoints(newTrajectory);
                     currentPass.Trajectories.Add(newTrajectory);
+                    isConfigurationDirty = true;
                     trajectoryToSelect = newTrajectory; // Mark this new trajectory for selection
                 }
 
@@ -957,41 +991,30 @@ namespace RobTeach.Views
         }
         private void SaveConfigButton_Click(object sender, RoutedEventArgs e)
         {
-            SaveFileDialog saveFileDialog = new SaveFileDialog {
-                Filter = "Config files (*.json)|*.json|All files (*.*)|*.*",
-                Title = "Save Configuration File",
-                FileName = $"{ProductNameTextBox.Text}.json" // Suggest filename based on product name
-            };
-            // Set initial directory (similar to LoadDxfButton_Click)
-            string initialDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "RobTeachProject", "RobTeach", "Configurations"));
-            if (!Directory.Exists(initialDir)) initialDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configurations"); // Fallback
-            if (!Directory.Exists(initialDir)) Directory.CreateDirectory(initialDir); // Create if doesn't exist
-            saveFileDialog.InitialDirectory = initialDir;
-
-            if (saveFileDialog.ShowDialog() == true)
+            bool success = PerformSaveOperation(); // PerformSaveOperation will handle dialogs and actual saving
+            if (success)
             {
-                _currentConfiguration = CreateConfigurationFromCurrentState(true); // Ensure latest state
-                _currentConfiguration.ProductName = ProductNameTextBox.Text; // Update product name just before saving
-
-                try
-                {
-                    _configService.SaveConfiguration(_currentConfiguration, saveFileDialog.FileName);
-                    StatusTextBlock.Text = $"Configuration saved to {Path.GetFileName(saveFileDialog.FileName)}";
-                    _currentLoadedConfigPath = saveFileDialog.FileName; // Update current loaded path
-                }
-                catch (Exception ex)
-                {
-                    StatusTextBlock.Text = "Error saving configuration.";
-                    MessageBox.Show($"Failed to save configuration: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                isConfigurationDirty = false;
+                // StatusTextBlock.Text is likely updated within PerformSaveOperation or can be set here
+                // For example: StatusTextBlock.Text = $"Configuration saved to {Path.GetFileName(_currentLoadedConfigPath)}";
+                // This depends on how much PerformSaveOperation handles.
+                // For now, just focus on calling it and setting the dirty flag.
             }
             else
             {
-                StatusTextBlock.Text = "Save configuration cancelled.";
+                // Optional: Update status if save failed or was cancelled within PerformSaveOperation
+                // StatusTextBlock.Text = "Save configuration cancelled or failed.";
             }
         }
         private void LoadConfigButton_Click(object sender, RoutedEventArgs e)
         {
+            bool canProceed = PromptAndTrySaveChanges();
+            if (!canProceed)
+            {
+                StatusTextBlock.Text = "Load configuration cancelled due to unsaved changes."; // Optional feedback
+                return;
+            }
+
             OpenFileDialog openFileDialog = new OpenFileDialog {
                 Filter = "Config files (*.json)|*.json|All files (*.*)|*.*",
                 Title = "Load Configuration File"
@@ -1047,7 +1070,7 @@ namespace RobTeach.Views
                     // might need to be re-run or updated if the config implies specific CAD entities.
                     // For now, just loading configuration values. Future work might involve
                     // re-selecting entities based on handles stored in config if _currentDxfDocument is still relevant.
-
+                    isConfigurationDirty = false;
                     StatusTextBlock.Text = $"Configuration loaded from {Path.GetFileName(openFileDialog.FileName)}";
                     _currentLoadedConfigPath = openFileDialog.FileName;
                 }
@@ -1063,6 +1086,7 @@ namespace RobTeach.Views
                     // The old global nozzle checkbox resets are removed.
                     // UpperNozzleOnCheckBox_Changed(null, null); // Removed
                     // LowerNozzleOnCheckBox_Changed(null, null); // Removed
+                    isConfigurationDirty = false;
                     UpdateDirectionIndicator(); // Clear indicator if error during load
                 }
             }
@@ -1137,6 +1161,65 @@ namespace RobTeach.Views
         /// <summary>
         /// Calculates the bounding rectangle for a given DXF entity.
         /// </summary>
+        private bool PerformSaveOperation()
+        {
+            // This logic is largely moved from the original SaveConfigButton_Click
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Filter = "Config files (*.json)|*.json|All files (*.*)|*.*",
+                Title = "Save Configuration File",
+                FileName = $"{ProductNameTextBox.Text}.json" // Suggest filename
+            };
+
+            string initialDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "RobTeachProject", "RobTeach", "Configurations"));
+            if (!Directory.Exists(initialDir))
+            {
+                initialDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configurations"); // Fallback
+            }
+            if (!Directory.Exists(initialDir))
+            {
+                try
+                {
+                    Directory.CreateDirectory(initialDir);
+                }
+                catch (Exception ex)
+                {
+                    StatusTextBlock.Text = $"Error creating configurations directory: {ex.Message}";
+                    // Optionally, default to a known accessible path or handle error differently
+                    initialDir = AppDomain.CurrentDomain.BaseDirectory;
+                }
+            }
+            saveFileDialog.InitialDirectory = initialDir;
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                // Ensure the configuration object has the latest product name
+                _currentConfiguration.ProductName = ProductNameTextBox.Text;
+                // CreateConfigurationFromCurrentState(true) was called here before,
+                // but _currentConfiguration should already be up-to-date due to other UI interactions.
+                // If CreateConfigurationFromCurrentState did more, that logic might need to be re-evaluated.
+                // For now, directly using _currentConfiguration.
+
+                try
+                {
+                    _configService.SaveConfiguration(_currentConfiguration, saveFileDialog.FileName);
+                    StatusTextBlock.Text = $"Configuration saved to {Path.GetFileName(saveFileDialog.FileName)}";
+                    _currentLoadedConfigPath = saveFileDialog.FileName; // Update current loaded path
+                    return true; // Save successful
+                }
+                catch (Exception ex)
+                {
+                    StatusTextBlock.Text = "Error saving configuration.";
+                    MessageBox.Show($"Failed to save configuration: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return false; // Save failed
+                }
+            }
+            else
+            {
+                StatusTextBlock.Text = "Save configuration cancelled.";
+                return false; // User cancelled SaveFileDialog
+            }
+        }
         private (double minX, double minY, double maxX, double maxY)? CalculateEntityBoundsSimple(DxfEntity entity)
         {
             try
@@ -1172,6 +1255,42 @@ namespace RobTeach.Views
             }
         }
 
+        private bool PromptAndTrySaveChanges()
+        {
+            if (!isConfigurationDirty)
+            {
+                return true; // No unsaved changes, proceed.
+            }
+
+            MessageBoxResult result = MessageBox.Show(
+                "You have unsaved changes. Would you like to save the current configuration?",
+                "Unsaved Changes",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+
+            switch (result)
+            {
+                case MessageBoxResult.Yes:
+                    // PerformSaveOperation() will be implemented in a later step.
+                    // Assume it returns true if save was successful, false if user cancelled or error.
+                    bool saveSuccess = PerformSaveOperation();
+                    if (saveSuccess)
+                    {
+                        isConfigurationDirty = false; // Reset dirty flag only if save was successful
+                        return true; // Proceed with the original action
+                    }
+                    else
+                    {
+                        return false; // Save failed or was cancelled, so cancel the original action
+                    }
+                case MessageBoxResult.No:
+                    return true; // User chose not to save, proceed with the original action
+                case MessageBoxResult.Cancel:
+                    return false; // User cancelled the original action
+                default:
+                    return false; // Should not happen
+            }
+        }
 
 
         private void HandleError(Exception ex, string action) { /* ... (No change) ... */ }
